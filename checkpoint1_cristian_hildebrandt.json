@@ -1,0 +1,171 @@
+{
+  "name": "Checkpoint 1 - Agente de Calificacion de Leads (CJH Bienes Raices)",
+  "nodes": [
+    {
+      "parameters": {
+        "public": true,
+        "initialMessages": "Hola! 👋\nMi nombre es Juan, en que puedo ayudarte?",
+        "options": {
+          "inputPlaceholder": "Escribi tu consulta sobre una propiedad...",
+          "subtitle": "Calificacion de leads y coordinacion de visitas",
+          "title": "Asistente CJH Bienes Raices"
+        }
+      },
+      "id": "25bb5389-d696-4d40-b39d-75f0f7b7497b",
+      "name": "Chat Trigger",
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -1072,
+        -384
+      ],
+      "webhookId": "f3a1c9e2-7b44-4d2a-9c11-6e2f0a1b2c9d"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.chatInput }}",
+        "options": {
+          "systemMessage": "ROL:\nSos el Asistente de Calificacion de Leads de CJH Bienes Raices / HECORE Construcciones, una inmobiliaria y desarrolladora que opera en CABA y AMBA. Tu funcion es atender consultas iniciales de potenciales clientes interesados en comprar, vender, alquilar o construir una propiedad.\n\nAMBITO:\n- Atendes consultas sobre propiedades en venta y alquiler, terrenos, y proyectos de construccion o remodelacion.\n- Trabajas exclusivamente con la informacion de contacto y consultas que el usuario te provee en la conversacion.\n- Operas dentro del horario comercial declarado por la inmobiliaria; fuera de ese contexto, aclaras que un asesor humano continuara el seguimiento.\n\nOBJETIVO:\n- Calificar el lead: identificar tipo de operacion (compra, venta, alquiler o construccion), zona de interes, presupuesto aproximado y urgencia de la consulta.\n- Brindar informacion general y precisa sobre el servicio, sin inventar datos de propiedades puntuales que no fueron provistos.\n- Cuando la consulta este calificada y el usuario lo solicite o acepte, enviar por correo electronico un resumen de la consulta al equipo comercial para su seguimiento, usando la herramienta disponible.\n\nREGLAS Y ESCALAMIENTO:\n- No tenes autorizacion para cerrar operaciones, firmar contratos, fijar precios definitivos ni prometer condiciones de financiacion.\n- No debes inventar direcciones, valores de tasacion ni disponibilidad de unidades que no fueron confirmados por la organizacion.\n- Si el usuario solicita hablar con una persona, o la consulta excede tu alcance (reclamos, temas legales, litigios), informa que un asesor humano de CJH Bienes Raices se pondra en contacto y evita seguir profundizando en ese tema.\n- REGLA OBLIGATORIA: en cuanto la conversacion tenga tipo de operacion + zona o presupuesto Y el usuario haya aceptado ser contactado, DEBES llamar a la herramienta de envio de resumen antes de responder el mensaje final. No es opcional ni una sugerencia: es un paso obligatorio del proceso. Nunca le digas al usuario que vas a enviar el resumen sin haber llamado realmente a la herramienta.\n- Mantene un tono profesional, claro y directo, evitando el uso de formulas de lenguaje inclusivo (por ejemplo 'todos y todas', 'bienvenidos/as'); usa el genero gramatical neutro estandar del espanol.\n- Nunca compartas datos internos de la organizacion (comisiones, costos operativos, datos de otros clientes).\n- Ante cualquier duda sobre si una accion esta permitida, opta por no ejecutarla y deriva a un humano.",
+          "maxIterations": 7,
+          "returnIntermediateSteps": true
+        }
+      },
+      "id": "e7fd4758-0f4c-43b8-b88e-dd9a84b6f2d1",
+      "name": "Agente de Calificacion de Leads",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        -784,
+        -384
+      ]
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.1-flash-lite",
+        "options": {}
+      },
+      "id": "d028e89f-a28c-4457-888f-bb1675fe5613",
+      "name": "Google Gemini Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -880,
+        -144
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "3Uuj5dg6FaPprKoe",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "cjhbienesraices@gmail.com",
+        "subject": "={{ $fromAI('asunto', 'Asunto del correo, debe incluir la palabra Lead y el tipo de operacion detectada (compra, venta, alquiler o construccion)', 'string') }}",
+        "message": "={{ $fromAI('cuerpo_resumen_lead', 'Cuerpo del correo con el resumen estructurado del lead: nombre del contacto si fue provisto, tipo de operacion, zona de interes, presupuesto aproximado, urgencia y cualquier dato relevante recolectado durante la conversacion.', 'string') }}",
+        "options": {}
+      },
+      "id": "7d5bc7c0-a3e9-47ae-a63d-324ec57ff051",
+      "name": "Gmail - Enviar Resumen de Lead (Tool)",
+      "type": "n8n-nodes-base.gmailTool",
+      "typeVersion": 2.1,
+      "position": [
+        -608,
+        -144
+      ],
+      "toolDescription": "Utiliza esta herramienta EXCLUSIVAMENTE cuando la consulta del usuario ya fue calificada como un lead comercial valido, es decir cuando se cuenta al menos con el tipo de operacion (compra, venta, alquiler o construccion) y con la zona de interes o presupuesto aproximado. Debes activarla de forma autonoma en los siguientes casos de negocio: (1) el usuario expresa intencion concreta de avanzar, por ejemplo pide ser contactado, solicita una visita, o pregunta como continuar el proceso; (2) el usuario confirma que la informacion brindada es correcta y acepta que se derive su consulta al equipo comercial; (3) la conversacion alcanzo un nivel de detalle suficiente (tipo de operacion + zona o presupuesto) y el usuario no manifesto intencion de finalizar sin avanzar. NO debes usar esta herramienta si la consulta es solo informativa y general (por ejemplo preguntas sobre como funciona la inmobiliaria), si falta el tipo de operacion, o si el usuario todavia no confirmo que desea que se contacte al equipo comercial. No uses esta herramienta mas de una vez por conversacion salvo que el usuario aporte informacion sustancialmente nueva y pida explicitamente un nuevo resumen.",
+      "webhookId": "a487cca5-864d-46fe-a216-3be0c78076e2",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "cdfskOr2Zhz2rrsb",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "=cjhbienesraices@gmail.com",
+        "subject": "=Reporte de observabilidad - Agente de Leads - {{$now.format('yyyy-MM-dd HH:mm')}}",
+        "message": "=Resumen de ejecucion del Agente de Calificacion de Leads.\n\nRespuesta final del agente:\n{{ $json.output }}\n\nPasos intermedios (razonamiento y herramientas utilizadas):\n{{ JSON.stringify($json.intermediateSteps, null, 2) }}",
+        "options": {}
+      },
+      "id": "7327165e-ea80-425d-94ae-a7f1b3c6d5c8",
+      "name": "Notificacion - Log de Observabilidad",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        -448,
+        -384
+      ],
+      "webhookId": "ff69e363-2687-41e9-8a5a-d41be3b43c53",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "cdfskOr2Zhz2rrsb",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Chat Trigger": {
+      "main": [
+        [
+          {
+            "node": "Agente de Calificacion de Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Agente de Calificacion de Leads",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail - Enviar Resumen de Lead (Tool)": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agente de Calificacion de Leads",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agente de Calificacion de Leads": {
+      "main": [
+        [
+          {
+            "node": "Notificacion - Log de Observabilidad",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "e1089638-1167-4137-8fd6-8ced096fc74d",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "df9e67d3a27dbd55082a4ba9903a16dff87c78f795bdb47a6cdcb01939fa4c8c"
+  },
+  "nodeGroups": [],
+  "id": "Wrf9X1IlSEcTYl1G",
+  "tags": []
+}
